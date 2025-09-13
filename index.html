@@ -4,10 +4,123 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
+    <title>Gemini AI Chat</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Tailwind Config -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                50: '#f0f4ff',
+                100: '#e0e9ff',
+                200: '#c7d6fe',
+                300: '#a5b8fc',
+                400: '#8b94f8',
+                500: '#667eea',
+                600: '#5a67d8',
+                700: '#4c51bf',
+                800: '#434190',
+                900: '#3c366b',
+              },
+              secondary: {
+                50: '#faf5ff',
+                100: '#f3e8ff',
+                200: '#e9d5ff',
+                300: '#d8b4fe',
+                400: '#c084fc',
+                500: '#764ba2',
+                600: '#9333ea',
+                700: '#7c3aed',
+                800: '#6b21a8',
+                900: '#581c87',
+              }
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.3s ease-in',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    
+    <!-- Custom Styles -->
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        margin: 0;
+      }
+      
+      /* Custom scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgb(226 232 240);
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgb(203 213 225);
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgb(148 163 184);
+      }
+      
+      /* Typing animation */
+      @keyframes typing {
+        0%, 60%, 100% {
+          transform: translateY(0);
+          opacity: 0.5;
+        }
+        30% {
+          transform: translateY(-10px);
+          opacity: 1;
+        }
+      }
+      
+      .typing-dot {
+        width: 8px;
+        height: 8px;
+        background-color: rgb(148 163 184);
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+      }
+      
+      .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      
+      .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+      
+      /* Glass effect utility */
+      .glass {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      
+      .glass:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+    </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="bg-slate-950 text-white">
+    <div id="root" class="min-h-screen"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
