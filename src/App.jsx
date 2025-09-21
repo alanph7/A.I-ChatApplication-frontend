@@ -46,11 +46,18 @@ function App() {
         message: userMessage,
       });
       
-      // Add AI response
-      setChat((prev) => [
-        ...prev,
-        { role: "ai", text: res.data.reply },
-      ]);
+      // Add AI response - handle both text and image responses
+      if (res.data.type === "image") {
+        setChat((prev) => [
+          ...prev,
+          { role: "ai", text: "", image: res.data.image, type: "image" },
+        ]);
+      } else {
+        setChat((prev) => [
+          ...prev,
+          { role: "ai", text: res.data.text, type: "text" },
+        ]);
+      }
     } catch (error) {
       console.error("❌ Error sending message:", error);
       setChat((prev) => [
@@ -84,8 +91,41 @@ function App() {
     }
   };
 
-  // Format message text with markdown-like styling
-  const formatMessage = (text) => {
+  // Format message text with markdown-like styling and handle images
+  const formatMessage = (messageData) => {
+    // If it's an image message, display the image
+    if (messageData.type === 'image' && messageData.image) {
+      return (
+        <div className="flex flex-col gap-3">
+          <div className="rounded-xl overflow-hidden border border-slate-600/50 shadow-lg max-w-md">
+            <img 
+              src={messageData.image} 
+              alt="Generated image" 
+              className="w-full h-auto object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'block';
+              }}
+            />
+            <div style={{display: 'none'}} className="p-4 bg-slate-800/50 text-slate-300 text-sm">
+              ❌ Failed to load image
+            </div>
+          </div>
+          {messageData.text && (
+            <div className="leading-relaxed message-content">
+              {formatTextContent(messageData.text)}
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Otherwise format as text
+    return formatTextContent(messageData.text || messageData);
+  };
+
+  // Separate function for text formatting
+  const formatTextContent = (text) => {
     if (!text) return '';
     
     // Split by code blocks first
@@ -356,7 +396,7 @@ function App() {
                           : 'backdrop-blur-xl bg-slate-800/40 border border-slate-700/50 text-slate-100'
                       }`}>
                         <div className="text-sm leading-relaxed">
-                          {formatMessage(c.text)}
+                          {formatMessage(c)}
                         </div>
                       </div>
                     </div>
