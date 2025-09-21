@@ -6,6 +6,9 @@ function App() {
   const [chat, setChat] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState(null);
+  const [messageReactions, setMessageReactions] = useState({});
   const chatEndRef = useRef(null);
 
   // Auto-scroll to latest
@@ -35,7 +38,16 @@ function App() {
 
     const userMessage = message;
     setMessage("");
-    setIsLoading(true);
+    
+    // Check if this is an image request
+    const imageKeywords = ["image of", "show me", "generate image", "picture of"];
+    const isImageRequest = imageKeywords.some(keyword => userMessage.toLowerCase().includes(keyword));
+    
+    if (isImageRequest) {
+      setIsGeneratingImage(true);
+    } else {
+      setIsLoading(true);
+    }
 
     // Add user message immediately
     setChat((prev) => [...prev, { role: "user", text: userMessage }]);
@@ -66,6 +78,7 @@ function App() {
       ]);
     } finally {
       setIsLoading(false);
+      setIsGeneratingImage(false);
     }
   };
 
@@ -91,17 +104,59 @@ function App() {
     }
   };
 
+  // Handle emoji reactions
+  const addReaction = (messageIndex, emoji) => {
+    setMessageReactions(prev => ({
+      ...prev,
+      [messageIndex]: {
+        ...prev[messageIndex],
+        [emoji]: (prev[messageIndex]?.[emoji] || 0) + 1
+      }
+    }));
+  };
+
+  // Format text with proper paragraph breaks
+  const formatParagraphs = (text) => {
+    if (!text) return '';
+    
+    // Split by double line breaks for paragraphs
+    const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
+    
+    if (paragraphs.length <= 1) {
+      // If no paragraph breaks, split by single line breaks
+      return text.split('\n').map((line, index) => (
+        <span key={index}>
+          {line}
+          {index < text.split('\n').length - 1 && <br />}
+        </span>
+      ));
+    }
+    
+    return paragraphs.map((paragraph, index) => (
+      <p key={index} className={index > 0 ? "mt-4" : ""}>
+        {paragraph.split('\n').map((line, lineIndex) => (
+          <span key={lineIndex}>
+            {line}
+            {lineIndex < paragraph.split('\n').length - 1 && <br />}
+          </span>
+        ))}
+      </p>
+    ));
+  };
+
   // Format message text with markdown-like styling and handle images
   const formatMessage = (messageData) => {
     // If it's an image message, display the image
     if (messageData.type === 'image' && messageData.image) {
       return (
         <div className="flex flex-col gap-3">
-          <div className="rounded-xl overflow-hidden border border-slate-600/50 shadow-lg max-w-md">
+          <div className="rounded-xl overflow-hidden border border-slate-600/50 shadow-lg max-w-md cursor-pointer hover:opacity-90 transition-opacity">
             <img 
               src={messageData.image} 
               alt="Generated image" 
               className="w-full h-auto object-cover"
+              loading="lazy"
+              onClick={() => setFullScreenImage(messageData.image)}
               onError={(e) => {
                 e.target.style.display = 'none';
                 e.target.nextSibling.style.display = 'block';
@@ -112,7 +167,7 @@ function App() {
             </div>
           </div>
           {messageData.text && (
-            <div className="leading-relaxed message-content">
+            <div className="leading-relaxed word-wrap break-words">
               {formatTextContent(messageData.text)}
             </div>
           )}
@@ -200,18 +255,41 @@ function App() {
         formattedContent = formattedContent.replace(/^(\d+)\. /gm, '<span class="text-blue-400 font-semibold">$1.</span> ');
         
         return (
-          <div 
-            key={index}
-            className="leading-relaxed message-content"
-            dangerouslySetInnerHTML={{ __html: formattedContent }}
-          />
+          <div key={index} className="leading-relaxed word-wrap break-words hyphens-auto">
+            <div dangerouslySetInnerHTML={{ __html: formattedContent }} />
+          </div>
         );
       }
     });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col font-sans antialiased">
+      {/* Full Screen Image Modal */}
+      {fullScreenImage && (
+        <div 
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+          onClick={() => setFullScreenImage(null)}
+        >
+          <div className="relative max-w-full max-h-full">
+            <img 
+              src={fullScreenImage} 
+              alt="Full screen view" 
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button 
+              onClick={() => setFullScreenImage(null)}
+              className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="backdrop-blur-xl bg-slate-900/30 border-b border-slate-700/50 sticky top-0 z-50 shadow-2xl">
         <div className="max-w-5xl mx-auto px-6 py-5">
@@ -229,7 +307,7 @@ function App() {
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 blur-lg opacity-20 group-hover:opacity-40 transition-all duration-300"></div>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">OctaAI Pro</h1>
+                <h1 className="text-xl font-bold text-white tracking-tight">OptaAI Pro</h1>
                 <p className="text-sm text-slate-400 font-medium">Advanced AI Assistant</p>
               </div>
             </div>
@@ -238,7 +316,7 @@ function App() {
             <div className="flex items-center gap-3">
               <button 
                 onClick={loadHistory} 
-                className="glass-button px-4 py-2.5 rounded-xl text-sm font-medium text-white/90 flex items-center gap-2 focus-ring no-print"
+                className="bg-white/5 backdrop-blur-[10px] border border-white/10 px-4 py-2.5 rounded-xl text-sm font-medium text-white/90 flex items-center gap-2 transition-all duration-200 hover:bg-white/10 hover:border-white/20 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed print:hidden"
                 disabled={isLoadingHistory}
               >
                 {isLoadingHistory ? (
@@ -260,7 +338,7 @@ function App() {
               </button>
               <button 
                 onClick={clearChat} 
-                className="glass-button px-4 py-2.5 rounded-xl text-sm font-medium text-white/90 flex items-center gap-2 focus-ring no-print"
+                className="bg-white/5 backdrop-blur-[10px] border border-white/10 px-4 py-2.5 rounded-xl text-sm font-medium text-white/90 flex items-center gap-2 transition-all duration-200 hover:bg-white/10 hover:border-white/20 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent print:hidden"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -269,7 +347,7 @@ function App() {
               </button>
               <button 
                 onClick={clearHistory} 
-                className="glass-button px-4 py-2.5 rounded-xl text-sm font-medium text-red-400/90 flex items-center gap-2 hover:bg-red-900/20 focus-ring no-print"
+                className="bg-white/5 backdrop-blur-[10px] border border-red-500/30 px-4 py-2.5 rounded-xl text-sm font-medium text-red-400/90 flex items-center gap-2 transition-all duration-200 hover:bg-red-900/20 hover:border-white/20 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent print:hidden"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -297,13 +375,13 @@ function App() {
                 </div>
                 <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 blur-2xl opacity-30 group-hover:opacity-50 animate-pulse-slow"></div>
               </div>
-              <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Hello! I'm OctaAI Pro</h2>
+              <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Hello! I'm OptaAI Pro</h2>
               <p className="text-slate-400 text-lg max-w-md mb-12 leading-relaxed">
                 I'm here to help you with questions, creative tasks, analysis, and more. 
                 What would you like to explore today?
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
-                <div className="group backdrop-blur-xl bg-slate-800/20 border border-slate-700/50 p-6 rounded-2xl hover:bg-slate-700/30 transition-all duration-300 cursor-pointer shadow-xl hover:shadow-2xl hover:scale-105 focus-ring"
+                <div className="group backdrop-blur-xl bg-slate-800/20 border border-slate-700/50 p-6 rounded-2xl hover:bg-slate-700/30 transition-all duration-300 cursor-pointer shadow-xl hover:shadow-2xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent"
                      onClick={() => setMessage("What can you help me with?")}>
                   <div className="flex items-start gap-4">
                     <div className="p-3 rounded-lg bg-yellow-500/10 group-hover:bg-yellow-500/20 transition-colors">
@@ -317,7 +395,7 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <div className="group backdrop-blur-xl bg-slate-800/20 border border-slate-700/50 p-6 rounded-2xl hover:bg-slate-700/30 transition-all duration-300 cursor-pointer shadow-xl hover:shadow-2xl hover:scale-105 focus-ring"
+                <div className="group backdrop-blur-xl bg-slate-800/20 border border-slate-700/50 p-6 rounded-2xl hover:bg-slate-700/30 transition-all duration-300 cursor-pointer shadow-xl hover:shadow-2xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent"
                      onClick={() => setMessage("Help me write a professional email")}>
                   <div className="flex items-start gap-4">
                     <div className="p-3 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
@@ -331,7 +409,7 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <div className="group backdrop-blur-xl bg-slate-800/20 border border-slate-700/50 p-6 rounded-2xl hover:bg-slate-700/30 transition-all duration-300 cursor-pointer shadow-xl hover:shadow-2xl hover:scale-105 focus-ring"
+                <div className="group backdrop-blur-xl bg-slate-800/20 border border-slate-700/50 p-6 rounded-2xl hover:bg-slate-700/30 transition-all duration-300 cursor-pointer shadow-xl hover:shadow-2xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent"
                      onClick={() => setMessage("Explain a complex topic simply")}>
                   <div className="flex items-start gap-4">
                     <div className="p-3 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
@@ -345,7 +423,7 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <div className="group backdrop-blur-xl bg-slate-800/20 border border-slate-700/50 p-6 rounded-2xl hover:bg-slate-700/30 transition-all duration-300 cursor-pointer shadow-xl hover:shadow-2xl hover:scale-105 focus-ring"
+                <div className="group backdrop-blur-xl bg-slate-800/20 border border-slate-700/50 p-6 rounded-2xl hover:bg-slate-700/30 transition-all duration-300 cursor-pointer shadow-xl hover:shadow-2xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent"
                      onClick={() => setMessage("Help me solve a problem")}>
                   <div className="flex items-start gap-4">
                     <div className="p-3 rounded-lg bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
@@ -388,24 +466,59 @@ function App() {
                     {/* Message Content */}
                     <div className={`flex flex-col ${c.role === 'user' ? 'items-end' : 'items-start'}`}>
                       <div className="text-xs text-slate-400 mb-3 font-semibold tracking-wide uppercase">
-                        {c.role === 'user' ? 'You' : 'Gemini Pro'}
+                        {c.role === 'user' ? 'You' : 'Opta Pro'}
                       </div>
-                      <div className={`rounded-2xl px-6 py-4 max-w-none shadow-xl ${
-                        c.role === 'user'
-                          ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
-                          : 'backdrop-blur-xl bg-slate-800/40 border border-slate-700/50 text-slate-100'
-                      }`}>
-                        <div className="text-sm leading-relaxed">
-                          {formatMessage(c)}
+                      <div className="group relative">
+                        <div className={`rounded-2xl px-6 py-4 max-w-none shadow-xl ${
+                          c.role === 'user'
+                            ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
+                            : 'backdrop-blur-xl bg-slate-800/40 border border-slate-700/50 text-slate-100'
+                        }`}>
+                          <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-invert">
+                            {formatMessage(c)}
+                          </div>
                         </div>
+                        
+                        {/* Reaction buttons for AI messages */}
+                        {c.role === 'ai' && (
+                          <div className="absolute -bottom-2 left-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <div className="flex gap-1 bg-slate-800/80 backdrop-blur-sm rounded-full px-2 py-1 border border-slate-600/50">
+                              {['👍', '👎', '❤️', '😂', '😮', '😢'].map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => addReaction(i, emoji)}
+                                  className="hover:scale-110 transition-transform duration-150 p-1 rounded-full hover:bg-slate-700/50"
+                                  title={`React with ${emoji}`}
+                                >
+                                  <span className="text-sm">{emoji}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Display reactions */}
+                        {messageReactions[i] && Object.keys(messageReactions[i]).length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {Object.entries(messageReactions[i]).map(([emoji, count]) => (
+                              <div
+                                key={emoji}
+                                className="flex items-center gap-1 bg-slate-700/50 rounded-full px-2 py-1 text-xs"
+                              >
+                                <span>{emoji}</span>
+                                <span className="text-slate-300">{count}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
               
-              {/* Loading indicator */}
-              {isLoading && (
+              {/* Image generation loading indicator */}
+              {isGeneratingImage && (
                 <div className="flex justify-start animate-fade-in">
                   <div className="flex gap-4">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center shadow-lg">
@@ -416,7 +529,38 @@ function App() {
                       </svg>
                     </div>
                     <div className="flex flex-col">
-                      <div className="text-xs text-slate-400 mb-3 font-semibold tracking-wide uppercase">OctaAI Pro</div>
+                      <div className="text-xs text-slate-400 mb-3 font-semibold tracking-wide uppercase">OptaAI Pro</div>
+                      <div className="backdrop-blur-xl bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-4 shadow-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 animate-pulse flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <span className="text-sm text-slate-200 font-medium">Generating image...</span>
+                            <div className="text-xs text-slate-400 mt-1">This may take a moment</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Regular text loading indicator */}
+              {isLoading && !isGeneratingImage && (
+                <div className="flex justify-start animate-fade-in">
+                  <div className="flex gap-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center shadow-lg">
+                      <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" fill="currentColor"/>
+                        <path d="M19 15L19.31 16.32L21 16.63L19.31 16.94L19 18.25L18.69 16.94L17 16.63L18.69 16.32L19 15Z" fill="currentColor"/>
+                        <path d="M5 6L5.31 7.32L7 7.63L5.31 7.94L5 9.25L4.69 7.94L3 7.63L4.69 7.32L5 6Z" fill="currentColor"/>
+                      </svg>
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="text-xs text-slate-400 mb-3 font-semibold tracking-wide uppercase">OptaAI Pro</div>
                       <div className="backdrop-blur-xl bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-4 shadow-xl">
                         <div className="flex items-center gap-3">
                           <div className="flex gap-1">
@@ -437,17 +581,17 @@ function App() {
         </div>
 
         {/* Input Section */}
-        <div className="border-t border-slate-700/50 p-6 backdrop-blur-xl bg-slate-900/20 no-print">
+        <div className="border-t border-slate-700/50 p-6 backdrop-blur-xl bg-slate-900/20 print:hidden">
           <div className="relative max-w-4xl mx-auto">
             <div className="backdrop-blur-xl bg-slate-800/30 border border-slate-700/50 rounded-3xl flex items-end gap-4 p-4 focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:border-blue-500/50 transition-all duration-200 shadow-xl">
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder="Message OctaAI Pro..."
-                disabled={isLoading}
+                placeholder="Message Opta Pro..."
+                disabled={isLoading || isGeneratingImage}
                 rows="1"
-                className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-400 text-sm resize-none min-h-[32px] max-h-40 "
+                className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-400 text-sm resize-none min-h-[32px] max-h-40"
                 style={{ 
                   minHeight: '32px',
                   height: 'auto',
@@ -460,14 +604,14 @@ function App() {
               />
               <button 
                 onClick={sendMessage} 
-                className={`p-3 rounded-xl transition-all duration-200 shadow-lg focus-ring ${
-                  isLoading || !message.trim()
+                className={`p-3 rounded-xl transition-all duration-200 shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent ${
+                  isLoading || isGeneratingImage || !message.trim()
                     ? 'bg-slate-700 cursor-not-allowed opacity-50' 
-                    : 'btn-primary hover:scale-105'
+                    : 'bg-gradient-to-br from-blue-500 to-purple-600 shadow-[0_4px_14px_0_rgba(59,130,246,0.25)] border border-white/10 hover:bg-gradient-to-br hover:from-blue-600 hover:to-purple-700 hover:shadow-[0_6px_20px_0_rgba(59,130,246,0.4)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_2px_8px_0_rgba(59,130,246,0.3)]'
                 }`}
-                disabled={isLoading || !message.trim()}
+                disabled={isLoading || isGeneratingImage || !message.trim()}
               >
-                {isLoading ? (
+                {isLoading || isGeneratingImage ? (
                   <svg className="w-5 h-5 text-white animate-spin" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"/>
                     <path fill="currentColor" className="opacity-75" d="m4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
@@ -480,7 +624,7 @@ function App() {
               </button>
             </div>
             <div className="text-xs text-gray-500 text-center mt-3">
-              OctaAI may display inaccurate info, including about people, so double-check its responses.
+              OptaAI may display inaccurate info, including about people, so double-check its responses.
             </div>
           </div>
         </div>
