@@ -229,7 +229,7 @@ function App() {
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 blur-lg opacity-20 group-hover:opacity-40 transition-all duration-300"></div>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Gemini Pro</h1>
+                <h1 className="text-xl font-bold text-white tracking-tight">OctaAI Pro</h1>
                 <p className="text-sm text-slate-400 font-medium">Advanced AI Assistant</p>
               </div>
             </div>
@@ -297,7 +297,7 @@ function App() {
                 </div>
                 <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 blur-2xl opacity-30 group-hover:opacity-50 animate-pulse-slow"></div>
               </div>
-              <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Hello! I'm Gemini Pro</h2>
+              <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Hello! I'm OctaAI Pro</h2>
               <p className="text-slate-400 text-lg max-w-md mb-12 leading-relaxed">
                 I'm here to help you with questions, creative tasks, analysis, and more. 
                 What would you like to explore today?
@@ -416,7 +416,7 @@ function App() {
                       </svg>
                     </div>
                     <div className="flex flex-col">
-                      <div className="text-xs text-slate-400 mb-3 font-semibold tracking-wide uppercase">Gemini Pro</div>
+                      <div className="text-xs text-slate-400 mb-3 font-semibold tracking-wide uppercase">OctaAI Pro</div>
                       <div className="backdrop-blur-xl bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-4 shadow-xl">
                         <div className="flex items-center gap-3">
                           <div className="flex gap-1">
@@ -444,7 +444,7 @@ function App() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder="Message Gemini Pro..."
+                placeholder="Message OctaAI Pro..."
                 disabled={isLoading}
                 rows="1"
                 className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-400 text-sm resize-none min-h-[32px] max-h-40 "
@@ -480,7 +480,7 @@ function App() {
               </button>
             </div>
             <div className="text-xs text-gray-500 text-center mt-3">
-              Gemini may display inaccurate info, including about people, so double-check its responses.
+              OctaAI may display inaccurate info, including about people, so double-check its responses.
             </div>
           </div>
         </div>
