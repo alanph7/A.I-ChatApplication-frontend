@@ -9,6 +9,8 @@ function App() {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(null);
   const [messageReactions, setMessageReactions] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
+  
   const chatEndRef = useRef(null);
 
   // Auto-scroll to latest
@@ -65,10 +67,22 @@ function App() {
           { role: "ai", text: "", image: res.data.image, type: "image" },
         ]);
       } else {
-        setChat((prev) => [
-          ...prev,
-          { role: "ai", text: res.data.text, type: "text" },
-        ]);
+        // Typing effect for AI text
+        const fullText = res.data.text || '';
+        let targetIndex = -1;
+        setChat((prev) => {
+          targetIndex = prev.length;
+          return [...prev, { role: "ai", text: "", type: "text" }];
+        });
+        typeOutText(fullText, (partial) => {
+          setChat((prev) => {
+            const next = [...prev];
+            if (next[targetIndex]) {
+              next[targetIndex] = { ...next[targetIndex], text: partial };
+            }
+            return next;
+          });
+        });
       }
     } catch (error) {
       console.error("❌ Error sending message:", error);
@@ -96,6 +110,78 @@ function App() {
       console.error("❌ Error clearing history:", error);
     }
   };
+
+  // Upload a file to backend, preview image and show AI analysis
+  const uploadFile = async (file) => {
+    if (!file || isUploading) return;
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await axios.post("http://localhost:5000/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
+      const { url, analysis, mimetype } = res.data || {};
+
+      setChat((prev) => [...prev, { role: "user", text: `Uploaded: ${file.name}` }]);
+
+      if (mimetype?.startsWith("image/") && url) {
+        setChat((prev) => [
+          ...prev,
+          { role: "ai", text: "", image: url, type: "image" },
+        ]);
+      }
+
+      // Typing effect for analysis text
+      const fullText = analysis || "I uploaded the file. No analysis returned.";
+      let targetIndex = -1;
+      setChat((prev) => {
+        targetIndex = prev.length;
+        return [...prev, { role: "ai", text: "", type: "text" }];
+      });
+      typeOutText(fullText, (partial) => {
+        setChat((prev) => {
+          const next = [...prev];
+          if (next[targetIndex]) {
+            next[targetIndex] = { ...next[targetIndex], text: partial };
+          }
+          return next;
+        });
+      });
+    } catch (error) {
+      console.error("❌ Upload error:", error);
+      setChat((prev) => [
+        ...prev,
+        { role: "ai", text: "❌ Failed to upload/analyze file. Please try again." },
+      ]);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Incrementally update a message's text to create a typing effect
+  const typeOutText = (text, onUpdate, baseDelay = 15) => {
+    if (!text) {
+      onUpdate("");
+      return;
+    }
+    let index = 0;
+    const length = text.length;
+    const step = Math.max(1, Math.min(3, Math.floor(length / 800))); // faster for very long texts
+
+    const tick = () => {
+      index = Math.min(length, index + step);
+      onUpdate(text.slice(0, index));
+      if (index < length) {
+        setTimeout(tick, baseDelay);
+      }
+    };
+    tick();
+  };
+
+  
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -253,10 +339,18 @@ function App() {
         
         // Replace numbered lists
         formattedContent = formattedContent.replace(/^(\d+)\. /gm, '<span class="text-blue-400 font-semibold">$1.</span> ');
+
+        // Paragraph and line-break formatting
+        const withParagraphs = formattedContent
+          .trim()
+          .split(/\n\s*\n/) // paragraphs
+          .map(p => p.replace(/\n/g, '<br />'))
+          .join('</p><p>');
+        const html = `<p>${withParagraphs}</p>`;
         
         return (
           <div key={index} className="leading-relaxed word-wrap break-words hyphens-auto">
-            <div dangerouslySetInnerHTML={{ __html: formattedContent }} />
+            <div dangerouslySetInnerHTML={{ __html: html }} />
           </div>
         );
       }
@@ -602,6 +696,33 @@ function App() {
                   e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
                 }}
               />
+              <input
+                id="file-input"
+                type="file"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadFile(file);
+                  e.target.value = ""; // allow re-selecting same file
+                }}
+              />
+              <label
+                htmlFor="file-input"
+                className={`p-3 rounded-xl transition-all duration-200 shadow-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 hover:-translate-y-0.5 ${isUploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                title={isUploading ? 'Uploading...' : 'Upload a file'}
+              >
+                {isUploading ? (
+                  <svg className="w-5 h-5 text-white animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"/>
+                    <path fill="currentColor" className="opacity-75" d="m4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M8 12l4-4m0 0l4 4m-4-4v12" />
+                  </svg>
+                )}
+              </label>
+              
               <button 
                 onClick={sendMessage} 
                 className={`p-3 rounded-xl transition-all duration-200 shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent ${
@@ -617,8 +738,8 @@ function App() {
                     <path fill="currentColor" className="opacity-75" d="m4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10l18-7-7 18-3-7-8-4z" />
                   </svg>
                 )}
               </button>
